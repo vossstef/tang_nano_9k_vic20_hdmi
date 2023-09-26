@@ -13,7 +13,10 @@ Features:
 By default cartridge ROM will be booted (see push button how to suppress).
 
 ![vic20_dvi](\.assets/vic20_dvi.png)<br> <br>
-Note: HDMI Signal is not yet fully compatible with 4K Monitor/TV !<br>
+**Warning** HDMI Signal is not fully compatible with many Monitor/TV as mode 720x576p@50Hz isn't an official [VESA](https://glenwing.github.io/docs/VESA-DMT-1.13.pdf) mode!<br>
+Working on e.g. BENQ GL2450HM, Check [EDID](https://en.wikipedia.org/wiki/Extended_Display_Identification_Data) Display Monitor Timing (DMT) of your target display for support.
+An [EDID Database](https://github.com/bsdhw/EDID) or other support material might help.<br>
+
 ![vic20_hdmi](\.assets/hdmi_1.png)<br>
 <br>
 
