@@ -1,11 +1,11 @@
---Copyright (C)2014-2023 Gowin Semiconductor Corporation.
+--Copyright (C)2014-2024 Gowin Semiconductor Corporation.
 --All rights reserved.
 --File Title: IP file
---GOWIN Version: V1.9.8.11 Education
+--Tool Version: V1.9.9.01 (64-bit)
 --Part Number: GW1NR-LV9QN88PC6/I5
 --Device: GW1NR-9
 --Device Version: C
---Created Time: Sat Aug 12 15:31:44 2023
+--Created Time: Fri Mar 15 22:04:05 2024
 
 library IEEE;
 use IEEE.std_logic_1164.all;
@@ -13,15 +13,15 @@ use IEEE.std_logic_1164.all;
 entity Gowin_rPLL is
     port (
         clkout: out std_logic;
-        clkoutd: out std_logic;
+        lock: out std_logic;
         clkin: in std_logic
     );
 end Gowin_rPLL;
 
 architecture Behavioral of Gowin_rPLL is
 
-    signal lock_o: std_logic;
     signal clkoutp_o: std_logic;
+    signal clkoutd_o: std_logic;
     signal clkoutd3_o: std_logic;
     signal gw_gnd: std_logic;
     signal FBDSEL_i: std_logic_vector(5 downto 0);
@@ -91,11 +91,11 @@ begin
             FCLKIN => "27",
             DEVICE => "GW1NR-9C",
             DYN_IDIV_SEL => "false",
-            IDIV_SEL => 2,
+            IDIV_SEL => 7,
             DYN_FBDIV_SEL => "false",
-            FBDIV_SEL => 54,
+            FBDIV_SEL => 52,
             DYN_ODIV_SEL => "false",
-            ODIV_SEL => 2,
+            ODIV_SEL => 4,
             PSDA_SEL => "0000",
             DYN_DA_EN => "true",
             DUTYDA_SEL => "1000",
@@ -107,15 +107,15 @@ begin
             CLKOUT_BYPASS => "false",
             CLKOUTP_BYPASS => "false",
             CLKOUTD_BYPASS => "false",
-            DYN_SDIV_SEL => 14,
+            DYN_SDIV_SEL => 2,
             CLKOUTD_SRC => "CLKOUT",
             CLKOUTD3_SRC => "CLKOUT"
         )
         port map (
             CLKOUT => clkout,
-            LOCK => lock_o,
+            LOCK => lock,
             CLKOUTP => clkoutp_o,
-            CLKOUTD => clkoutd,
+            CLKOUTD => clkoutd_o,
             CLKOUTD3 => clkoutd3_o,
             RESET => gw_gnd,
             RESET_P => gw_gnd,
