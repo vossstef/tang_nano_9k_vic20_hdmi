@@ -85,11 +85,13 @@ end;
 
 architecture RTL of VIC20 is
 
+    signal clk_pixel_x5       : std_logic;
     signal clock_35MHz        : std_logic;
     signal clock_div          : std_logic_vector(2 downto 0);
     signal clock_8MHz         : std_logic;
     signal ena_4              : std_logic;
     signal auto_reset         : std_logic;
+    signal pll_locked         : std_logic;
     -- cpu
     signal c_ena              : std_logic;
     signal c_addr             : std_logic_vector(23 downto 0);
@@ -201,55 +203,6 @@ architecture RTL of VIC20 is
 
     signal hblank, vblank : std_logic;
 
-    component M6561 is
-      port (
-        I_CLK             : in    std_logic;
-        I_ENA_4           : in    std_logic; -- 4.436 MHz clock enable
-        I_RESET_L         : in    std_logic;
-        O_ENA_1MHZ        : out   std_logic; -- 1.1 MHz strobe
-        O_P2_H            : out   std_logic; -- 2.2 MHz cpu access
-        O_P2_H_RISE       : out   std_logic;
-        O_P2_H_FALL       : out   std_logic;
-    
-        I_RW_L            : in    std_logic;
-    
-        I_ADDR            : in    std_logic_vector(13 downto 0);
-        O_ADDR            : out   std_logic_vector(13 downto 0);
-    
-        I_DATA            : in    std_logic_vector(11 downto 0);
-        O_DATA            : out   std_logic_vector( 7 downto 0);
-        O_DATA_OE_L       : out   std_logic;
-        --
-        O_AUDIO           : out   std_logic_vector(5 downto 0);
-    
-        O_VIDEO_R         : out   std_logic_vector(3 downto 0);
-        O_VIDEO_G         : out   std_logic_vector(3 downto 0);
-        O_VIDEO_B         : out   std_logic_vector(3 downto 0);
-    
-        O_HSYNC           : out   std_logic;
-        O_VSYNC           : out   std_logic;
-        O_COMP_SYNC_L     : out   std_logic;
-        O_HBLANK          : out   std_logic;
-        O_VBLANK          : out   std_logic;
-        --
-        I_CENTER          : in    std_logic_vector(1 downto 0);
-        I_PAL             : in    std_logic;
-        I_WIDE            : in    std_logic;
-        --
-        I_LIGHT_PEN       : in    std_logic;
-        I_POTX            : in    std_logic_vector( 7 downto 0);
-        I_POTY            : in    std_logic_vector( 7 downto 0)
-      );
-      end component;
-
-   component Gowin_rPLL
-   port (
-         clkout: out std_logic;
-         clkoutd: out std_logic;
-         clkin: in std_logic
-     );
-   end component;
-
 component CLKDIV
     generic (
         DIV_MODE : STRING := "2";
@@ -263,219 +216,28 @@ component CLKDIV
     );
 end component;
 
-component Gowin_pROM_kernal
-   port (
-       dout: out std_logic_vector(7 downto 0);
-       clk: in std_logic;
-       oce: in std_logic;
-       ce: in std_logic;
-       reset: in std_logic;
-       ad: in std_logic_vector(12 downto 0)
-   );
-end component;
-
-component Gowin_pROM_char
-   port (
-       dout: out std_logic_vector(7 downto 0);
-       clk: in std_logic;
-       oce: in std_logic;
-       ce: in std_logic;
-       reset: in std_logic;
-       ad: in std_logic_vector(11 downto 0)
-   );
-end component;
-
-component Gowin_pROM_basic
-   port (
-       dout: out std_logic_vector(7 downto 0);
-       clk: in std_logic;
-       oce: in std_logic;
-       ce: in std_logic;
-       reset: in std_logic;
-       ad: in std_logic_vector(12 downto 0)
-   );
-end component;
-
-component Gowin_pROM_cart_rom
-    port (
-        dout: out std_logic_vector(7 downto 0);
-        clk: in std_logic;
-        oce: in std_logic;
-        ce: in std_logic;
-        reset: in std_logic;
-        ad: in std_logic_vector(12 downto 0)
-    );
-end component;
-
-component Gowin_pROM
-    port (
-        dout: out std_logic_vector(7 downto 0);
-        clk: in std_logic;
-        oce: in std_logic;
-        ce: in std_logic;
-        reset: in std_logic;
-        ad: in std_logic_vector(12 downto 0)
-    );
-end component;
-
-component Gowin_SP_1kb
-    port (
-        dout: out std_logic_vector(7 downto 0);
-        clk: in std_logic;
-        oce: in std_logic;
-        ce: in std_logic;
-        reset: in std_logic;
-        wre: in std_logic;
-        ad: in std_logic_vector(9 downto 0);
-        din: in std_logic_vector(7 downto 0)
-    );
-end component;
-
-component Gowin_SP_2kb
-    port (
-        dout: out std_logic_vector(7 downto 0);
-        clk: in std_logic;
-        oce: in std_logic;
-        ce: in std_logic;
-        reset: in std_logic;
-        wre: in std_logic;
-        ad: in std_logic_vector(10 downto 0);
-        din: in std_logic_vector(7 downto 0)
-    );
-end component;
-
-component T65 
-  port(
-  Mode    : in  std_logic_vector(1 downto 0);      -- "00" => 6502, "01" => 65C02, "10" => 65C816
-  Res_n   : in  std_logic;
-  Enable  : in  std_logic;
-  Clk     : in  std_logic;
-  Rdy     : in  std_logic;
-  Abort_n : in  std_logic;
-  IRQ_n   : in  std_logic;
-  NMI_n   : in  std_logic;
-  SO_n    : in  std_logic;
-  R_W_n   : out std_logic;
-  Sync    : out std_logic;
-  EF      : out std_logic;
-  MF      : out std_logic;
-  XF      : out std_logic;
-  ML_n    : out std_logic;
-  VP_n    : out std_logic;
-  VDA     : out std_logic;
-  VPA     : out std_logic;
-  A       : out std_logic_vector(23 downto 0);
-  DI      : in  std_logic_vector(7 downto 0);
-  DO      : out std_logic_vector(7 downto 0)
-  );
-end component T65;
-
-component M6522
-  port (
-    I_RS              : in    std_logic_vector(3 downto 0);
-    I_DATA            : in    std_logic_vector(7 downto 0);
-    O_DATA            : out   std_logic_vector(7 downto 0);
-    O_DATA_OE_L       : out   std_logic;
-
-    I_RW_L            : in    std_logic;
-    I_CS1             : in    std_logic;
-    I_CS2_L           : in    std_logic;
-
-    O_IRQ_L           : out   std_logic; -- note, not open drain
-    -- port a
-    I_CA1             : in    std_logic;
-    I_CA2             : in    std_logic;
-    O_CA2             : out   std_logic;
-    O_CA2_OE_L        : out   std_logic;
-
-    I_PA              : in    std_logic_vector(7 downto 0);
-    O_PA              : out   std_logic_vector(7 downto 0);
-    O_PA_OE_L         : out   std_logic_vector(7 downto 0);
-
-    -- port b
-    I_CB1             : in    std_logic;
-    O_CB1             : out   std_logic;
-    O_CB1_OE_L        : out   std_logic;
-
-    I_CB2             : in    std_logic;
-    O_CB2             : out   std_logic;
-    O_CB2_OE_L        : out   std_logic;
-
-    I_PB              : in    std_logic_vector(7 downto 0);
-    O_PB              : out   std_logic_vector(7 downto 0);
-    O_PB_OE_L         : out   std_logic_vector(7 downto 0);
-
-    I_P2_H            : in    std_logic; -- high for phase 2 clock  ____----__
-    RESET_L           : in    std_logic;
-    ENA_4             : in    std_logic; -- clk enable
-    CLK               : in    std_logic
-    );
-end component;
-
-component VIC20_DBLSCAN 
-  port (
-    I_CLK_REF         : in    std_logic;
-    I_R               : in    std_logic_vector( 3 downto 0);
-    I_G               : in    std_logic_vector( 3 downto 0);
-    I_B               : in    std_logic_vector( 3 downto 0);
-    I_HSYNC           : in    std_logic;
-    I_VSYNC           : in    std_logic;
-    I_vic_audio       : in    std_logic_vector( 5 downto 0);
-    I_HBLANK          : in    std_logic;
-    I_VBLANK          : in    std_logic;
-    tmds_clk_n        : out   std_logic;
-    tmds_clk_p        : out   std_logic;
-    tmds_d_n          : out   std_logic_vector( 2 downto 0);
-    tmds_d_p          : out   std_logic_vector( 2 downto 0);
-    ENA               : in    std_logic;
-    reset_n           : in    std_logic;
-    CLK               : in    std_logic
-  );
-end component;
-
-component VIC20_PS2_IF 
-  port (
-    I_PS2_CLK       : in    std_logic;
-    I_PS2_DATA      : in    std_logic;
-
-    I_COL           : in    std_logic_vector(7 downto 0);
-    O_ROW           : out   std_logic_vector(7 downto 0);
-    O_RESTORE       : out   std_logic;
-
-    I_ENA_1MHZ      : in    std_logic;
-    I_P2_H          : in    std_logic; -- high for phase 2 clock  ____----__
-    RESET_L         : in    std_logic;
-    ENA_4           : in    std_logic; -- 4x system clock (4HZ)   _-_-_-_-_-
-    CLK             : in    std_logic
-    );
-end component;
-
-component  dac 
-  generic (
-    msbi_g : integer := 7
-  );
-  port (
-    clk_i   : in  std_logic;
-    res_n_i : in  std_logic;
-    dac_i   : in  std_logic_vector(msbi_g downto 0);
-    dac_o   : out std_logic
-  );
-end component;
-
-COMPONENT GSR
- PORT (
- GSRI:IN std_logic
- );
-end component;
-
 begin
 
-clock_generator: Gowin_rPLL
+
+-- 178,875 Mhz pixel x5
+clock_generator: entity work.Gowin_rPLL
 port map (
-    clkoutd => clock_35MHz,
-    clkout => open,
-    clkin => I_CLK_REF
+    clkout => clk_pixel_x5,
+    lock   => pll_locked,
+    clkin  => I_CLK_REF
 );
+
+clock_divider_pix: CLKDIV
+generic map (
+    DIV_MODE => "5",
+    GSREN  => "false"
+)
+port map (
+    CALIB  => '0',
+    clkout => clock_35MHz,
+    hclkin => clk_pixel_x5,
+    resetn => pll_locked
+    );
 
 clock_divider0: CLKDIV
 generic map (
@@ -486,7 +248,7 @@ port map (
     CALIB  => '0',
     clkout => clock_8MHz,
     hclkin => clock_35MHz,
-    resetn => auto_reset
+    resetn => pll_locked
     );
 
 clock_divider1: CLKDIV
@@ -498,7 +260,7 @@ port map (
     CALIB  => '0',
     clkout => ena_4,
     hclkin => clock_8MHz,
-    resetn => auto_reset 
+    resetn => pll_locked 
     );
 
   LED(0) <= '1';
@@ -513,11 +275,6 @@ port map (
 -----------------------------------------------------------------------------
   -- Reset generation
   -----------------------------------------------------------------------------
-  gsr_inst: GSR
-    PORT MAP(
-    GSRI => push_reset_n
-  );
-
    auto_reset <= push_reset_n;
 
   IECbusclk : process         -- IEC-bus clock signal (aka: serial bus)
@@ -580,7 +337,7 @@ p_expansion : process(blk_sel_l, cart_data)
   --<= cass_motor
   cass_sw <= '1'; -- motor off
 
-cpu : T65
+cpu : entity work.T65
     port map (
         Mode    => "00",
         Res_n   => auto_reset,
@@ -605,7 +362,7 @@ cpu : T65
         DO      => c_dout
     );
 
-    vic : M6561
+    vic : entity work.M6561
     port map (
       I_CLK           => clock_8MHz,  
       I_ENA_4         => ena_4,  
@@ -636,7 +393,7 @@ cpu : T65
       O_HBLANK        => hblank, 
       O_VBLANK        => vblank, 
       --
-      I_CENTER        => "00", -- V/H
+      I_CENTER        => "01", -- V/H
       I_PAL           => '1',  -- 1 pal / 0 ntsc
       I_WIDE          => '0',  -- 0 normal / 1 wide
       --
@@ -645,7 +402,7 @@ cpu : T65
       I_POTY          => "00000000" 
       );
 
-  via1 : M6522
+  via1 : entity work.M6522
     port map (
       I_RS            => c_addr(3 downto 0),
       I_DATA          => v_data(7 downto 0),
@@ -696,7 +453,7 @@ cpu : T65
   via1_pa_in(1) <= serial_data_in;
   via1_pa_in(0) <= serial_clk_in;
 
-via2 : M6522
+via2 : entity work.M6522
   port map (
     I_RS            => c_addr(3 downto 0),
     I_DATA          => v_data(7 downto 0),
@@ -751,7 +508,7 @@ end if;
   end process;
   cass_write <= keybd_col_out(3);
 
-  keybd : VIC20_PS2_IF
+  keybd : entity work.VIC20_PS2_IF
     port map (
       I_PS2_CLK       => I_PS2_CLK,
       I_PS2_DATA      => I_PS2_DATA,
@@ -944,7 +701,7 @@ end if;
   -- main memory
   we0 <= not ram_sel_l(0) and not v_rw_l ; 
  
-  rams0 : Gowin_SP_1kb
+  rams0 : entity work.Gowin_SP_1kb
       port map (
           dout   => ram0_dout,
           clk    => clock_8MHz,
@@ -958,7 +715,7 @@ end if;
 
   we1 <= ((not ram_sel_l(4)) or (not ram_sel_l(5))) and (not v_rw_l );
 
-  rams45 : Gowin_SP_2kb 
+  rams45 : entity work.Gowin_SP_2kb 
     port map (
           dout   => ram45_dout,
           clk    => clock_8MHz,
@@ -972,7 +729,7 @@ end if;
 
   we2 <= ((not ram_sel_l(6)) or (not ram_sel_l(7))) and (not v_rw_l );
 
-  rams67 : Gowin_SP_2kb 
+  rams67 : entity work.Gowin_SP_2kb 
       port map (
           dout   => ram67_dout,
           clk    => clock_8MHz,
@@ -986,7 +743,7 @@ end if;
 
   we3 <= not col_ram_sel_l and not v_rw_l ;
 
-col_ram: Gowin_SP_1kb
+col_ram: entity work.Gowin_SP_1kb
     port map (
       dout  => col_ram_dout,
       clk   => clock_8MHz,
@@ -999,7 +756,7 @@ col_ram: Gowin_SP_1kb
     );
 
     -- VIC20's character ROM
-  char_rom : Gowin_pROM_char
+  char_rom : entity work.Gowin_pROM_char
       port map (
           dout  => char_rom_dout,
           clk   => clock_8MHz,
@@ -1010,7 +767,7 @@ col_ram: Gowin_SP_1kb
       );
 
   -- VIC20's basic ROM
-  basic_rom : Gowin_pROM_basic
+  basic_rom : entity work.Gowin_pROM_basic
       port map (
           dout  => basic_rom_dout,
           clk   => clock_8MHz,
@@ -1021,7 +778,7 @@ col_ram: Gowin_SP_1kb
       );
 
   -- VIC20's kernal ROM
-  kernal_rom : Gowin_pROM_kernal
+  kernal_rom : entity work.Gowin_pROM_kernal
     port map (
           dout  => kernal_rom_dout,
           clk   => clock_8MHz,
@@ -1031,40 +788,42 @@ col_ram: Gowin_SP_1kb
           ad    => c_addr(12 downto 0)
     );
 
-  hdmi: VIC20_DBLSCAN
-    port map (
-      I_CLK_REF         => I_CLK_REF,
-      I_R               => video_r,
-      I_G               => video_g,
-      I_B               => video_b,
-      I_HSYNC           => hsync,
-      I_VSYNC           => vsync,
-      I_vic_audio       => vic_audio,
-      I_HBLANK          => hblank,
-      I_VBLANK          => vblank,
-      tmds_clk_n        => tmds_clk_n,
-      tmds_clk_p        => tmds_clk_p,
-      tmds_d_n          => tmds_d_n,
-      tmds_d_p          => tmds_d_p,
-      ENA               => ena_4,
-      reset_n           => auto_reset,
-      CLK               => clock_8MHz
-    );
+    O_AUDIO <= '0';
 
-    u_dac : dac
-    generic map(
-      msbi_g => 5
-    )
-    port  map(
-      clk_i   => clock_35MHz,
-      res_n_i => auto_reset,
-      dac_i   => vic_audio,
-      dac_o   => O_AUDIO
-    );
+    video_inst: entity work.video 
+    port map(
+          pll_lock     => pll_locked, 
+          clk          => clock_35MHz,
+          clk_pixel_x5 => clk_pixel_x5,
+          audio_div    => "101101100",
+    
+          ntscmode  => '0',
+          vb_in     => vblank,
+          hb_in     => hblank,
+          hs_in_n   => hsync,
+          vs_in_n   => vsync,
+    
+          r_in      => video_r,
+          g_in      => video_g,
+          b_in      => video_b,
+    
+          audio_l => vic_audio & "000000000000", 
+          audio_r => vic_audio & "000000000000",
+    
+          -- values that can be configure by the user via osd
+          system_wide_screen => '0',
+          system_scanlines => "00",
+          system_volume => "11",
+    
+          tmds_clk_n => tmds_clk_n,
+          tmds_clk_p => tmds_clk_p,
+          tmds_d_n   => tmds_d_n,
+          tmds_d_p   => tmds_d_p
+          );
   --
   -- cart slot 0xA000-0xBFFF (8K)
   --
-cart: Gowin_pROM
+cart: entity work.Gowin_pROM
     port map (
         dout  => cart_data,
         clk   => clock_8MHz,
